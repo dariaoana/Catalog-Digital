@@ -6,7 +6,7 @@ import java.sql.SQLException;
 public class Main {
     public static void main(String[] args) {
         try {
-            Connection conn = JDBC.conecteaza(); //apleaza functia de conectare din JDBC
+            Connection conn = JDBC.conecteaza();
             System.out.println("Conectat :)");
             conn.close();
         } catch (SQLException e) {
