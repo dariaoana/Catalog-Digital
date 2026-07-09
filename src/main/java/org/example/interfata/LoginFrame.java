@@ -3,7 +3,6 @@ package org.example.interfata;
 // Importăm exclusiv din pachetul Swing
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import java.awt.*;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
