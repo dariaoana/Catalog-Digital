@@ -1,7 +1,7 @@
 package org.example;
 
+import java.sql.*;
 import org.example.interfata.LoginFrame;
-
 import java.sql.Connection;
 import java.sql.SQLException;
 import com.formdev.flatlaf.FlatDarkLaf;
