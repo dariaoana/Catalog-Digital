@@ -3,6 +3,7 @@ package org.example.interfata;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import org.example.functii.FunctiiLogin;
+import org.example.functii.RezultatLogin;
 
 public class LoginFrame extends JFrame {
 
@@ -60,15 +61,38 @@ public class LoginFrame extends JFrame {
     }
 
     private void apasareButonLogare() {
-        String username = txtUtilizator.getText().trim();
-        String password = new String(txtParola.getText().trim());
-        if(username.isEmpty()|| password.isEmpty()){
-            JOptionPane.showMessageDialog(this,"Numele de utilizator sau parola incomplete!","Eroare de logare!",JOptionPane.ERROR_MESSAGE);
+        String username = txtUtilizator.getText();
+        String password = new String(txtParola.getPassword());
+
+        if(username.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Campuri necompletate!","Eroare!",JOptionPane.ERROR_MESSAGE);
             return;
         }
-        if(FunctiiLogin.verificaDateLogin(username,password)=="OK")
-        {
-            this.dispose();
+
+        FunctiiLogin functiiLogin = new FunctiiLogin();
+        RezultatLogin rezultat = functiiLogin.verificaDateLogin(username, password);
+
+
+        if (rezultat.isSucces()) {
+            int idUtilizator = rezultat.getIdUtilizator();
+            String rol = rezultat.getRol();
+
+            System.out.println("Logare reușită! ID: " + idUtilizator + " Rol: " + rol);
+            if (rol.equals("elev")) {
+                ElevFrame interfataElev=new ElevFrame(idUtilizator);
+                interfataElev.setVisible(true);
+            } else if (rol.equals("profesor")) {
+                // similar
+            }
+            else if(rol.equals("administrator")){
+
+            }
+            else if(rol.equals("parinte")){
+
+            }
+
+        } else {
+            JOptionPane.showMessageDialog(this,"Nu exista acest utilizator!","Eroare!",JOptionPane.ERROR_MESSAGE);
         }
     }
 

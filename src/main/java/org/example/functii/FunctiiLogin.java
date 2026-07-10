@@ -1,33 +1,13 @@
 package org.example.functii;
 
 import org.example.JDBC;
-
-import javax.swing.*;
 import java.sql.*;
 
 public class FunctiiLogin {
 
-    public static String verificaDateLogin(String username, String password) {
+    public RezultatLogin verificaDateLogin(String username, String password) {
 
-       /*String sqlUser = "select id_utilizator from utilizator where nume_utilizator=?";
-
-        try (Connection conn = JDBC.conecteaza();
-             PreparedStatement ps = conn.prepareStatement(sqlUser)) {
-
-            ps.setString(1, username);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
-                    JOptionPane.showMessageDialog(null, "Numele de utilizator nu exista!","Eroare",JOptionPane.ERROR_MESSAGE);
-                }
-            }
-
-        } catch (SQLException e) {
-            return "Eroare SQL: " + e.getMessage();
-            return "nimic";
-        }*/
-
-        String sqlLogin = "select id_utilizator from utilizator where nume_utilizator=? and parola_utilizator=?";
+        String sqlLogin = "select id_utilizator, rol from utilizator where nume_utilizator=? and parola_utilizator=?";
 
         try (Connection conn = JDBC.conecteaza();
              PreparedStatement ps = conn.prepareStatement(sqlLogin)) {
@@ -37,15 +17,16 @@ public class FunctiiLogin {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return "OK";
+                    int idUtilizator = rs.getInt("id_utilizator");
+                    String rol = rs.getString("rol");
+                    return new RezultatLogin(true, idUtilizator, rol);
                 } else {
-                    JOptionPane.showMessageDialog(null,"Numele de utilizator sau parola sunt incorecte!","Eroare",JOptionPane.ERROR_MESSAGE);
+                    return new RezultatLogin(false,  -1, null);
                 }
             }
 
         } catch (SQLException e) {
-            return "Eroare SQL: " + e.getMessage();
+            return new RezultatLogin(false,  -1, null);
         }
-        return "Alte erori!!!";
     }
 }
