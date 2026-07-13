@@ -82,18 +82,17 @@ public class LoginFrame extends JFrame {
                 ElevFrame interfataElev=new ElevFrame(idUtilizator);
                 interfataElev.setVisible(true);
             } else if (rol.equals("profesor")) {
-                // similar
+                ProfesorFrame interfataProfesor=new ProfesorFrame(idUtilizator);
+                interfataProfesor.setVisible(true);
             }
             else if(rol.equals("administrator")){
-
             }
             else if(rol.equals("parinte")){
-
+                ParinteFrame interfataParinte= new ParinteFrame();
+                interfataParinte.setVisible(true);
             }
 
-        } else {
-            JOptionPane.showMessageDialog(this,"Nu exista acest utilizator!","Eroare!",JOptionPane.ERROR_MESSAGE);
-        }
+        } else JOptionPane.showMessageDialog(this, "Nu exista acest utilizator!", "Eroare!", JOptionPane.ERROR_MESSAGE);
     }
 
 }

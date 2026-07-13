@@ -2,12 +2,12 @@ package org.example.functii;
 
 public class RezultatLogin {
     private boolean succes;
-    private int id_utilizator;
+    private int idUtilizator;
     private String rol;
 
     public RezultatLogin(boolean succes, int idUtilizator, String rol) {
         this.succes = succes;
-        this.id_utilizator = idUtilizator;
+        this.idUtilizator = idUtilizator;
         this.rol = rol;
     }
 
@@ -16,7 +16,7 @@ public class RezultatLogin {
     }
 
     public int getIdUtilizator() {
-        return id_utilizator;
+        return idUtilizator;
     }
 
     public String getRol() {

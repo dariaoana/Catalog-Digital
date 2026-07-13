@@ -1,47 +1,39 @@
 package org.example.interfata;
 
+import org.example.JDBC;
+
 import javax.swing.*;
-import java.awt.*;
-import java.util.List;
 import org.example.functii.FunctiiElev;
 import org.example.functii.PlanInvatamant;
 
-public class ElevFrame extends JFrame {
+import java.awt.*;
+import java.util.List;
 
-    public String clasaElevCurentString;
-    public int clasaElevCurent;
-    public int idElevCurent;
-    public FunctiiElev functiiElev;
+import static org.example.functii.FunctiiElev.numeElev;
 
-    public ElevFrame(int id_elev) {
-        this.idElevCurent = id_elev;
-        this.functiiElev = new FunctiiElev();
-        this.clasaElevCurentString = FunctiiElev.determinaClasa(idElevCurent);
-        clasaElevCurent = Integer.parseInt(clasaElevCurentString.charAt(0) + "");
+public class ParinteFrame extends JFrame {
 
-        setTitle("Notele mele");
-        setSize(800, 600);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
-        initComponente();
-    }
+        private int idUtilizatorParinte;
+        private int idCopil;
+        private String clasa;
+        private int clasaCopil;
+        public ParinteFrame(){
+            JFrame fereastraParinte=new JFrame();
+            fereastraParinte.setTitle("Situatie Elev"+ numeElev(idUtilizatorParinte) );
+            fereastraParinte.setSize(400,400);
+            fereastraParinte.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            setLocationRelativeTo(null);
 
-    public void initComponente() {
-        JPanel panelElev = new JPanel(new GridLayout(0, 3, 15, 15));
-
-        List<PlanInvatamant> planInvatamant = FunctiiElev.determinaMaterii(clasaElevCurent);
-        for (int i = 0; i < planInvatamant.size(); i++) {
-            String materie = planInvatamant.get(i).getNumeMaterie();
-            String profesor = planInvatamant.get(i).getNumeProfesor();
-            int idMaterie = planInvatamant.get(i).getIdMaterie();
-
-            List<Integer> note = FunctiiElev.determinaNote(idElevCurent, idMaterie);
-
-            panelElev.add(cardMaterie(materie, profesor, note));
+            this.clasa= FunctiiElev.determinaClasa(idCopil);
+            clasaCopil = Integer.parseInt(clasa.charAt(0) + "");
+            initComponente();
         }
-        JScrollPane scrollPane = new JScrollPane(panelElev);
-        this.add(scrollPane);
-    }
+        public void initComponente(){
+            JPanel panelParinte=new JPanel();
+
+
+        }
+
 
     public JPanel cardMaterie(String numeMaterie, String numeProfesor, List<Integer> note) {
 
@@ -97,4 +89,5 @@ public class ElevFrame extends JFrame {
 
         return card;
     }
+
 }

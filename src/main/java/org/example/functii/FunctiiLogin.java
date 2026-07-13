@@ -21,12 +21,14 @@ public class FunctiiLogin {
                     String rol = rs.getString("rol");
                     return new RezultatLogin(true, idUtilizator, rol);
                 } else {
-                    return new RezultatLogin(false,  -1, null);
+                    System.out.println("DEBUG: niciun rezultat pentru username='" + username + "' password='" + password + "'");
+                    return new RezultatLogin(false, -1, null);
                 }
             }
 
         } catch (SQLException e) {
-            return new RezultatLogin(false,  -1, null);
+            System.out.println("DEBUG: eroare SQL: " + e.getMessage());
+            return new RezultatLogin(false, -1, null);
         }
     }
 }
