@@ -7,24 +7,44 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
-
+import org.example.functii.Nota;
 public class FunctiiElev {
-    public static String numeElev(int id_parinte){
-        String numeElev="select nume from elev where elev.id_elev=?";
-        String nume;
-        try(Connection conn= JDBC.conecteaza();
-            PreparedStatement ps = conn.prepareStatement(numeElev)){
-            ps.setInt(1,id_parinte);
-            try (ResultSet rs=ps.executeQuery()){
-                if(rs.next()){
-                    nume=rs.getString("nume");
-                    return nume;
+    // 1. Metodă nouă pentru a prelua numele complet al elevului
+    public static String determinaNumeComplet(int idElev) {
+        String sql = "SELECT nume, prenume FROM elev WHERE id_elev = ?";
+        try (Connection conn = JDBC.conecteaza();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idElev);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("prenume") + " " + rs.getString("nume");
                 }
             }
-        }catch(Exception e){
-            System.out.print("Eroare la baza de date"+e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("Eroare determinare nume: " + e.getMessage());
         }
-        return null;
+        return "Elev Anonim";
+    }
+
+    // 2. Metodă nouă pentru a aduce notele împreună cu data notării
+    public static List<Nota> determinaNoteCuData(int idElev, int idMaterie) {
+        List<Nota> note = new ArrayList<>();
+        String sql = "SELECT valoare, data_notarii FROM nota WHERE elev = ? AND materie = ? ORDER BY data_notarii";
+        try (Connection conn = JDBC.conecteaza();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idElev);
+            ps.setInt(2, idMaterie);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int valoare = rs.getInt("valoare");
+                    String data = rs.getString("data_notarii"); // SQL DATE se preia frumos ca String
+                    note.add(new Nota(valoare, data));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Eroare preluare note cu dată: " + e.getMessage());
+        }
+        return note;
     }
 public static String determinaClasa(int id_elev){
     String sql="select clasa from elev where id_elev=?";

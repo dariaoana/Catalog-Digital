@@ -85,11 +85,12 @@ public class LoginFrame extends JFrame {
                 ProfesorFrame interfataProfesor=new ProfesorFrame(idUtilizator);
                 interfataProfesor.setVisible(true);
             }
-            else if(rol.equals("administrator")){
+            else if(rol.equals("admin")){
+                AdminFrame interfataAdmin = new AdminFrame();
+                interfataAdmin.setVisible(true);
             }
             else if(rol.equals("parinte")){
-                ParinteFrame interfataParinte= new ParinteFrame();
-                interfataParinte.setVisible(true);
+
             }
 
         } else JOptionPane.showMessageDialog(this, "Nu exista acest utilizator!", "Eroare!", JOptionPane.ERROR_MESSAGE);
