@@ -113,4 +113,28 @@ return null;
 
         return note;
     }
+    public static List<Nota> determinaNoteIstoric(int idElev, int idMaterie, int anClasa) {
+        List<Nota> note = new ArrayList<>();
+        // Selectăm notele unde anul din dată corespunde anului în care elevul a urmat clasa respectivă
+        String sql = "SELECT valoare, data_notarii FROM nota WHERE elev = ? AND materie = ? " +
+                "AND YEAR(data_notarii) = ? ORDER BY data_notarii ASC";
+
+        // Notă: Va trebui să corelezi anul calendaristic (ex: 2025) cu clasa selectată (ex: clasa a 5-a).
+        // Pentru simplitate în interfață, trimitem un query care aduce notele filtrat.
+        try (Connection conn = JDBC.conecteaza();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idElev);
+            ps.setInt(2, idMaterie);
+            ps.setInt(3, anClasa);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    // Aici folosești constructorul tău existent pentru clasa Nota
+                    note.add(new Nota(rs.getInt("valoare"), rs.getString("data_notarii")));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Eroare istoric: " + e.getMessage());
+        }
+        return note;
+    }
 }

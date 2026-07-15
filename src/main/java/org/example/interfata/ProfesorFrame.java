@@ -2,37 +2,49 @@ package org.example.interfata;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter; // IMPORT NOU
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import org.example.JDBC;
-import org.example.functii.MesagerieParinte;
-import org.example.functii.FunctiiMesaj;
 
 public class ProfesorFrame extends JFrame {
 
     private int idProfesorCurent;
     private JButton btnMesaje;
+    private JButton btnStatistici;
 
     private JComboBox<String> comboMaterie;
     private JComboBox<String> comboClasa;
     private JTextField campCautare;
     private JTable tabelElevi;
     private DefaultTableModel model;
+    private TableRowSorter<DefaultTableModel> sorter; // ELEMENT NOU pentru sortare
     private JButton btnAdaugaNota;
 
+    // Panoul de jos pentru istoricul notelor
+    private JPanel panelDetaliiNote;
+    private JLabel lblNumeElevSelectat;
+    private DefaultListModel<String> modelListaNote;
+    private JList<String> listaNoteVizuale;
+
+    // Folosim o clasă helper pentru a ține minte ID-ul elevului asociat rândului din model
     private List<Integer> idElevRanduri = new ArrayList<Integer>();
 
     public ProfesorFrame(int idProfesor) {
         this.idProfesorCurent = idProfesor;
 
         setTitle("Catalog Digital - Profesor");
-        setSize(750, 550);
+        setSize(850, 650);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
 
@@ -41,18 +53,16 @@ public class ProfesorFrame extends JFrame {
     }
 
     private void initComponente() {
-
         JPanel panelPrincipal = new JPanel();
         panelPrincipal.setLayout(new BoxLayout(panelPrincipal, BoxLayout.Y_AXIS));
 
-        // ---------- PANOU FILTRE ----------
+        // ---------- PANOU FILTRE (PE TOATĂ LĂȚIMEA) ----------
         JPanel panelFiltre = new JPanel();
         panelFiltre.setLayout(new BoxLayout(panelFiltre, BoxLayout.Y_AXIS));
-        panelFiltre.setBorder(new EmptyBorder(15, 20, 10, 20));
-
-        JLabel lblTitluFiltre = new JLabel("<html><b><font size='5'>Filtrare elevi</font></b></html>");
-        panelFiltre.add(lblTitluFiltre);
-        panelFiltre.add(Box.createVerticalStrut(10));
+        panelFiltre.setBorder(BorderFactory.createCompoundBorder(
+                new TitledBorder("Filtre selecție clasă și elev"),
+                new EmptyBorder(10, 15, 10, 15)
+        ));
 
         JPanel randMaterie = new JPanel();
         randMaterie.setLayout(new BoxLayout(randMaterie, BoxLayout.X_AXIS));
@@ -82,9 +92,10 @@ public class ProfesorFrame extends JFrame {
         panelFiltre.add(randCautare);
 
         panelPrincipal.add(panelFiltre);
-        panelPrincipal.add(new JSeparator());
+        panelPrincipal.add(Box.createVerticalStrut(5));
 
-        // ---------- TABEL ELEVI ----------
+        // ---------- ZONĂ CENTRALĂ VERTICAL SPLIT ----------
+
         String[] coloane = {"Nume", "Prenume", "Clasă"};
         model = new DefaultTableModel(coloane, 0) {
             @Override
@@ -97,21 +108,53 @@ public class ProfesorFrame extends JFrame {
         tabelElevi.setRowHeight(28);
         tabelElevi.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        JScrollPane scrollPane = new JScrollPane(tabelElevi);
-        scrollPane.setBorder(new EmptyBorder(10, 20, 10, 20));
-        panelPrincipal.add(scrollPane);
+        // INSTANȚIERE SORTER: Permite sortarea la click pe antetul tabelului
+        sorter = new TableRowSorter<>(model);
+        tabelElevi.setRowSorter(sorter);
+
+        JScrollPane scrollTabel = new JScrollPane(tabelElevi);
+        scrollTabel.setMinimumSize(new Dimension(400, 0));
+
+        panelDetaliiNote = new JPanel(new BorderLayout());
+        panelDetaliiNote.setBorder(BorderFactory.createCompoundBorder(
+                new TitledBorder("Note"),
+                new EmptyBorder(10, 10, 10, 10)
+        ));
+
+        panelDetaliiNote.setPreferredSize(new Dimension(280, 0));
+        panelDetaliiNote.setMinimumSize(new Dimension(220, 0));
+
+        lblNumeElevSelectat = new JLabel("<html>Selectează un elev<br>pentru a-i vedea notele.</html>");
+        lblNumeElevSelectat.setFont(new Font("Arial", Font.BOLD, 12));
+        lblNumeElevSelectat.setBorder(new EmptyBorder(0, 0, 8, 0));
+        panelDetaliiNote.add(lblNumeElevSelectat, BorderLayout.NORTH);
+
+        modelListaNote = new DefaultListModel<>();
+        listaNoteVizuale = new JList<>(modelListaNote);
+        listaNoteVizuale.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        JScrollPane scrollListaNote = new JScrollPane(listaNoteVizuale);
+        scrollListaNote.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+
+        panelDetaliiNote.add(scrollListaNote, BorderLayout.CENTER);
+
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, scrollTabel, panelDetaliiNote);
+        splitPane.setBorder(new EmptyBorder(10, 20, 10, 20));
+        splitPane.setAlignmentX(Component.CENTER_ALIGNMENT);
+        splitPane.setResizeWeight(1.0);
+        splitPane.setDividerLocation(500);
+        panelPrincipal.add(splitPane);
 
         // ---------- FOOTER ----------
         JPanel footer = new JPanel();
         footer.setLayout(new BoxLayout(footer, BoxLayout.X_AXIS));
         footer.setBorder(new EmptyBorder(10, 20, 15, 20));
 
-        btnAdaugaNota = new JButton("Adaugă notă elevului selectat");
+        btnAdaugaNota = new JButton("Adaugă notă");
         footer.add(btnAdaugaNota);
 
-        btnMesaje = new JButton("Mesaje cu părinții");
+        btnStatistici = new JButton("Statistici elevi");
         footer.add(Box.createHorizontalStrut(10));
-        footer.add(btnMesaje);
+        footer.add(btnStatistici);
 
         footer.add(Box.createHorizontalGlue());
 
@@ -120,13 +163,23 @@ public class ProfesorFrame extends JFrame {
 
         add(panelPrincipal);
 
-        // ---------- LISTENERE (clase anonime, fără lambda) ----------
+        // ---------- LISTENERE ----------
+
+        tabelElevi.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent e) {
+                if (!e.getValueIsAdjusting()) {
+                    incarcaDetaliiNoteSelectate();
+                }
+            }
+        });
 
         comboMaterie.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 incarcaClase();
                 incarcaElevi();
+                reseteazaDetaliiNote();
             }
         });
 
@@ -134,6 +187,7 @@ public class ProfesorFrame extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 incarcaElevi();
+                reseteazaDetaliiNote();
             }
         });
 
@@ -141,16 +195,19 @@ public class ProfesorFrame extends JFrame {
             @Override
             public void insertUpdate(DocumentEvent e) {
                 incarcaElevi();
+                reseteazaDetaliiNote();
             }
 
             @Override
             public void removeUpdate(DocumentEvent e) {
                 incarcaElevi();
+                reseteazaDetaliiNote();
             }
 
             @Override
             public void changedUpdate(DocumentEvent e) {
                 incarcaElevi();
+                reseteazaDetaliiNote();
             }
         });
 
@@ -161,15 +218,79 @@ public class ProfesorFrame extends JFrame {
             }
         });
 
-        btnMesaje.addActionListener(new ActionListener() {
+        btnStatistici.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                deschideListaParinti();
+                deschideStatistici();
             }
         });
     }
 
-    // ---------- ÎNCĂRCARE MATERII PREDATE DE PROFESOR ----------
+    private void deschideStatistici() {
+        int idMaterie = getIdMaterieSelectata();
+        if (idMaterie == -1) {
+            JOptionPane.showMessageDialog(this, "Te rog selectează o materie validă.");
+            return;
+        }
+
+        String clasaSelectata = (String) comboClasa.getSelectedItem();
+        String numeMaterie = ((String) comboMaterie.getSelectedItem()).split(" - ")[1];
+
+        StatisticiProfesorFrame statistici = new StatisticiProfesorFrame(clasaSelectata, idMaterie, numeMaterie);
+        statistici.setVisible(true);
+    }
+
+    private void reseteazaDetaliiNote() {
+        modelListaNote.clear();
+    }
+
+    private void incarcaDetaliiNoteSelectate() {
+        modelListaNote.clear();
+        int randSelectat = tabelElevi.getSelectedRow();
+
+        if (randSelectat == -1) {
+            reseteazaDetaliiNote();
+            return;
+        }
+
+        // CORECȚIE IMPORTANTĂ: Convertim indexul rândului vizual selectat în indexul real din model,
+        // deoarece sortarea modifică ordinea vizuală din tabel, dar nu și pe cea din array-ul nostru de ID-uri!
+        int randModel = tabelElevi.convertRowIndexToModel(randSelectat);
+        int idElev = idElevRanduri.get(randModel);
+
+        String numeComplet = model.getValueAt(randModel, 0) + " " + model.getValueAt(randModel, 1);
+        int idMaterie = getIdMaterieSelectata();
+
+        lblNumeElevSelectat.setText("<html><b>Note pentru:</b> " + numeComplet + "</html>");
+
+        String sql = "select valoare, data_notarii from nota where elev = ? and materie = ? order by data_notarii desc";
+
+        try (Connection conn = JDBC.conecteaza();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, idElev);
+            ps.setInt(2, idMaterie);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                boolean areNote = false;
+                while (rs.next()) {
+                    areNote = true;
+                    int valoare = rs.getInt("valoare");
+                    Date data = rs.getDate("data_notarii");
+
+                    String dataText = (data != null) ? data.toString() : "Fără dată";
+                    modelListaNote.addElement(" Nota " + valoare + " , " + dataText);
+                }
+
+                if (!areNote) {
+                    modelListaNote.addElement(" Elevul nu are note înregistrate la această materie.");
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Eroare preluare note: " + e.getMessage());
+        }
+    }
+
     private void incarcaMaterii() {
         String sql = "select id_materie, nume from materie where profesor_materie = ?";
 
@@ -202,7 +323,6 @@ public class ProfesorFrame extends JFrame {
         return Integer.parseInt(idText);
     }
 
-    // ---------- ÎNCĂRCARE CLASE CARE STUDIAZĂ MATERIA SELECTATĂ ----------
     private void incarcaClase() {
         comboClasa.removeAllItems();
 
@@ -270,7 +390,6 @@ public class ProfesorFrame extends JFrame {
         return Integer.parseInt(cifre.toString());
     }
 
-    // ---------- ÎNCĂRCARE ELEVI (cu filtre aplicate) ----------
     private void incarcaElevi() {
         model.setRowCount(0);
         idElevRanduri.clear();
@@ -332,7 +451,6 @@ public class ProfesorFrame extends JFrame {
         }
     }
 
-    // ---------- ADĂUGARE NOTĂ ----------
     private void deschideDialogAdaugaNota() {
         int randSelectat = tabelElevi.getSelectedRow();
         if (randSelectat == -1) {
@@ -340,8 +458,10 @@ public class ProfesorFrame extends JFrame {
             return;
         }
 
-        int idElev = idElevRanduri.get(randSelectat);
-        String numeElev = model.getValueAt(randSelectat, 0) + " " + model.getValueAt(randSelectat, 1);
+        // CORECȚIE: Convertim și aici indexul vizual selectat în cel din model
+        int randModel = tabelElevi.convertRowIndexToModel(randSelectat);
+        int idElev = idElevRanduri.get(randModel);
+        String numeElev = model.getValueAt(randModel, 0) + " " + model.getValueAt(randModel, 1);
         int idMaterie = getIdMaterieSelectata();
 
         String valoareText = JOptionPane.showInputDialog(this, "Notă pentru " + numeElev + " (1-10):");
@@ -380,43 +500,10 @@ public class ProfesorFrame extends JFrame {
 
             JOptionPane.showMessageDialog(this, "Nota a fost adăugată cu succes!");
 
+            incarcaDetaliiNoteSelectate();
+
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Eroare la salvare: " + e.getMessage());
         }
-    }
-
-    // ---------- MESAGERIE ----------
-    private void deschideListaParinti() {
-        List<MesagerieParinte> parinti = FunctiiMesaj.listaParintiPentruProfesor(idProfesorCurent);
-
-        if (parinti.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Nu ai părinți disponibili pentru mesagerie.");
-            return;
-        }
-
-        String[] optiuni = new String[parinti.size()];
-        for (int i = 0; i < parinti.size(); i++) {
-            optiuni[i] = parinti.get(i).getNumeParinte() + " (părinte al " + parinti.get(i).getNumeElev() + ")";
-        }
-
-        String ales = (String) JOptionPane.showInputDialog(this, "Alege un părinte:",
-                "Mesaje", JOptionPane.PLAIN_MESSAGE, null, optiuni, optiuni[0]);
-
-        if (ales == null) return;
-
-        int indexAles = -1;
-        for (int i = 0; i < optiuni.length; i++) {
-            if (optiuni[i].equals(ales)) {
-                indexAles = i;
-                break;
-            }
-        }
-
-        if (indexAles == -1) return;
-
-        MesagerieParinte parinteAles = parinti.get(indexAles);
-
-        ChatFrame chat = new ChatFrame(idProfesorCurent, parinteAles.getIdParinte(), "profesor", parinteAles.getNumeParinte());
-        chat.setVisible(true);
     }
 }

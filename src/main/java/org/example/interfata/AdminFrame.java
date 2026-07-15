@@ -1,5 +1,10 @@
 package org.example.interfata;
 
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.File;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
@@ -28,6 +33,7 @@ public class AdminFrame extends JFrame {
     private JButton btnAdauga;
     private JButton btnModifica;
     private JButton btnSterge;
+    private JButton btnImportExcel;
 
     public AdminFrame() {
         setTitle("Catalog Digital - Administrare Conturi");
@@ -91,6 +97,7 @@ public class AdminFrame extends JFrame {
         btnAdauga = new JButton("Adaugă Cont");
         btnModifica = new JButton("Modifică Cont");
         btnSterge = new JButton("Șterge Cont");
+        btnImportExcel = new JButton("Importă din Excel");
 
         panelActiuni.add(Box.createHorizontalGlue());
         panelActiuni.add(btnAdauga);
@@ -98,7 +105,7 @@ public class AdminFrame extends JFrame {
         panelActiuni.add(btnModifica);
         panelActiuni.add(Box.createHorizontalStrut(15));
         panelActiuni.add(btnSterge);
-        panelActiuni.add(Box.createHorizontalGlue());
+        panelActiuni.add(Box.createHorizontalStrut(15));
 
         panelPrincipal.add(panelActiuni);
         add(panelPrincipal);
@@ -118,8 +125,97 @@ public class AdminFrame extends JFrame {
         btnSterge.addActionListener(e -> stergeUtilizatorSelectat());
     }
 
-    // ================= FUNCȚII BAZĂ DE DATE & CRUD =================
 
+    private void importaUtilizatoriDinExcel(File fisier) {
+        int inserati = 0;
+        int esuati = 0;
+        StringBuilder erori = new StringBuilder();
+
+        try (FileInputStream fis = new FileInputStream(fisier);
+             Workbook workbook = new XSSFWorkbook(fis)) {
+
+            Sheet sheet = workbook.getSheetAt(0);
+
+            String sql = "insert into utilizator (nume_utilizator, parola_utilizator, rol) values (?, ?, ?)";
+
+            try (Connection conn = JDBC.conecteaza();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+
+                int primulRand = 0;
+
+                Row randTest = sheet.getRow(0);
+                if (randTest != null) {
+                    Cell celulaTest = randTest.getCell(0);
+                    if (celulaTest != null && celulaTest.getCellType() == CellType.STRING) {
+                        String valoare = celulaTest.getStringCellValue().toLowerCase().trim();
+                        if (valoare.equals("nume_utilizator") || valoare.equals("username")) {
+                            primulRand = 1;
+                        }
+                    }
+                }
+
+                for (int i = primulRand; i <= sheet.getLastRowNum(); i++) {
+                    Row row = sheet.getRow(i);
+                    if (row == null) continue;
+
+                    String numeUtilizator = citesteCelulaText(row, 0);
+                    String parola = citesteCelulaText(row, 1);
+                    String rol = citesteCelulaText(row, 2);
+
+                    if (numeUtilizator == null || numeUtilizator.trim().isEmpty()) {
+                        continue;
+                    }
+
+                    if (parola == null || rol == null) {
+                        esuati++;
+                        erori.append("Rând ").append(i + 1).append(": date incomplete\n");
+                        continue;
+                    }
+
+                    try {
+                        ps.setString(1, numeUtilizator.trim());
+                        ps.setString(2, parola.trim());
+                        ps.setString(3, rol.trim().toLowerCase());
+                        ps.executeUpdate();
+                        inserati++;
+                    } catch (SQLException ex) {
+                        esuati++;
+                        erori.append("Rând ").append(i + 1).append(": ").append(ex.getMessage()).append("\n");
+                    }
+                }
+            }
+
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "Eroare la citirea fișierului: " + ex.getMessage());
+            return;
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Eroare la conectarea bazei de date: " + ex.getMessage());
+            return;
+        }
+
+        String mesaj = "Import finalizat.\n" +
+                "Utilizatori adăugați: " + inserati + "\n" +
+                "Rânduri eșuate: " + esuati;
+
+        if (erori.length() > 0) {
+            mesaj += "\n\nDetalii:\n" + erori.toString();
+        }
+
+        JOptionPane.showMessageDialog(this, mesaj);
+        incarcaUtilizatori();
+    }
+
+    private String citesteCelulaText(Row row, int index) {
+        Cell celula = row.getCell(index);
+        if (celula == null) return null;
+
+        if (celula.getCellType() == CellType.STRING) {
+            return celula.getStringCellValue();
+        } else if (celula.getCellType() == CellType.NUMERIC) {
+            return String.valueOf((long) celula.getNumericCellValue());
+        }
+        return null;
+    }
     private void incarcaUtilizatori() {
         model.setRowCount(0);
         String sql = "SELECT id_utilizator, nume_utilizator, parola_utilizator, rol FROM utilizator ORDER BY id_utilizator";
