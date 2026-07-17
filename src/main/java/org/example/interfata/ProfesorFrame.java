@@ -20,7 +20,6 @@ import org.example.JDBC;
 public class ProfesorFrame extends JFrame {
 
     private int idProfesorCurent;
-    private JButton btnMesaje;
     private JButton btnStatistici;
 
     private JComboBox<String> comboMaterie;
@@ -30,6 +29,7 @@ public class ProfesorFrame extends JFrame {
     private DefaultTableModel model;
     private TableRowSorter<DefaultTableModel> sorter; // ELEMENT NOU pentru sortare
     private JButton btnAdaugaNota;
+    private JButton btnCereStergere;
 
     // Panoul de jos pentru istoricul notelor
     private JPanel panelDetaliiNote;
@@ -39,6 +39,8 @@ public class ProfesorFrame extends JFrame {
 
     // Folosim o clasă helper pentru a ține minte ID-ul elevului asociat rândului din model
     private List<Integer> idElevRanduri = new ArrayList<Integer>();
+    private List<Integer> idNoteRanduri = new ArrayList<Integer>();
+    private JButton btnCereModificare;
 
     public ProfesorFrame(int idProfesor) {
         this.idProfesorCurent = idProfesor;
@@ -56,7 +58,6 @@ public class ProfesorFrame extends JFrame {
         JPanel panelPrincipal = new JPanel();
         panelPrincipal.setLayout(new BoxLayout(panelPrincipal, BoxLayout.Y_AXIS));
 
-        // ---------- PANOU FILTRE (PE TOATĂ LĂȚIMEA) ----------
         JPanel panelFiltre = new JPanel();
         panelFiltre.setLayout(new BoxLayout(panelFiltre, BoxLayout.Y_AXIS));
         panelFiltre.setBorder(BorderFactory.createCompoundBorder(
@@ -94,7 +95,6 @@ public class ProfesorFrame extends JFrame {
         panelPrincipal.add(panelFiltre);
         panelPrincipal.add(Box.createVerticalStrut(5));
 
-        // ---------- ZONĂ CENTRALĂ VERTICAL SPLIT ----------
 
         String[] coloane = {"Nume", "Prenume", "Clasă"};
         model = new DefaultTableModel(coloane, 0) {
@@ -108,7 +108,7 @@ public class ProfesorFrame extends JFrame {
         tabelElevi.setRowHeight(28);
         tabelElevi.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        // INSTANȚIERE SORTER: Permite sortarea la click pe antetul tabelului
+
         sorter = new TableRowSorter<>(model);
         tabelElevi.setRowSorter(sorter);
 
@@ -123,6 +123,13 @@ public class ProfesorFrame extends JFrame {
 
         panelDetaliiNote.setPreferredSize(new Dimension(280, 0));
         panelDetaliiNote.setMinimumSize(new Dimension(220, 0));
+        btnCereModificare = new JButton("Cere modificare notă");
+        btnCereStergere = new JButton("Cere ștergere notă");
+
+        JPanel panelButoaneNote = new JPanel(new GridLayout(2, 1, 0, 5));
+        panelButoaneNote.add(btnCereModificare);
+        panelButoaneNote.add(btnCereStergere);
+        panelDetaliiNote.add(panelButoaneNote, BorderLayout.SOUTH);
 
         lblNumeElevSelectat = new JLabel("<html>Selectează un elev<br>pentru a-i vedea notele.</html>");
         lblNumeElevSelectat.setFont(new Font("Arial", Font.BOLD, 12));
@@ -144,7 +151,7 @@ public class ProfesorFrame extends JFrame {
         splitPane.setDividerLocation(500);
         panelPrincipal.add(splitPane);
 
-        // ---------- FOOTER ----------
+
         JPanel footer = new JPanel();
         footer.setLayout(new BoxLayout(footer, BoxLayout.X_AXIS));
         footer.setBorder(new EmptyBorder(10, 20, 15, 20));
@@ -224,6 +231,18 @@ public class ProfesorFrame extends JFrame {
                 deschideStatistici();
             }
         });
+        btnCereModificare.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                deschideDialogCereModificare();
+            }
+        });
+        btnCereStergere.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                deschideDialogCereStergere();
+            }
+        });
     }
 
     private void deschideStatistici() {
@@ -242,10 +261,12 @@ public class ProfesorFrame extends JFrame {
 
     private void reseteazaDetaliiNote() {
         modelListaNote.clear();
+        idNoteRanduri.clear(); // NOU
     }
 
     private void incarcaDetaliiNoteSelectate() {
         modelListaNote.clear();
+        idNoteRanduri.clear(); // NOU
         int randSelectat = tabelElevi.getSelectedRow();
 
         if (randSelectat == -1) {
@@ -253,8 +274,6 @@ public class ProfesorFrame extends JFrame {
             return;
         }
 
-        // CORECȚIE IMPORTANTĂ: Convertim indexul rândului vizual selectat în indexul real din model,
-        // deoarece sortarea modifică ordinea vizuală din tabel, dar nu și pe cea din array-ul nostru de ID-uri!
         int randModel = tabelElevi.convertRowIndexToModel(randSelectat);
         int idElev = idElevRanduri.get(randModel);
 
@@ -263,7 +282,8 @@ public class ProfesorFrame extends JFrame {
 
         lblNumeElevSelectat.setText("<html><b>Note pentru:</b> " + numeComplet + "</html>");
 
-        String sql = "select valoare, data_notarii from nota where elev = ? and materie = ? order by data_notarii desc";
+        // AM ADĂUGAT id_nota în select
+        String sql = "select id_nota, valoare, data_notarii from nota where elev = ? and materie = ? order by data_notarii desc";
 
         try (Connection conn = JDBC.conecteaza();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -275,11 +295,13 @@ public class ProfesorFrame extends JFrame {
                 boolean areNote = false;
                 while (rs.next()) {
                     areNote = true;
+                    int idNota = rs.getInt("id_nota");
                     int valoare = rs.getInt("valoare");
                     Date data = rs.getDate("data_notarii");
 
                     String dataText = (data != null) ? data.toString() : "Fără dată";
                     modelListaNote.addElement(" Nota " + valoare + " , " + dataText);
+                    idNoteRanduri.add(idNota); // NOU
                 }
 
                 if (!areNote) {
@@ -290,7 +312,6 @@ public class ProfesorFrame extends JFrame {
             System.err.println("Eroare preluare note: " + e.getMessage());
         }
     }
-
     private void incarcaMaterii() {
         String sql = "select id_materie, nume from materie where profesor_materie = ?";
 
@@ -504,6 +525,127 @@ public class ProfesorFrame extends JFrame {
 
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Eroare la salvare: " + e.getMessage());
+        }
+    }
+    private void deschideDialogCereModificare() {
+        int indexSelectat = listaNoteVizuale.getSelectedIndex();
+        if (indexSelectat == -1 || indexSelectat >= idNoteRanduri.size()) {
+            JOptionPane.showMessageDialog(this, "Selectează mai întâi o notă din listă.");
+            return;
+        }
+
+        int idNota = idNoteRanduri.get(indexSelectat);
+        String textSelectat = modelListaNote.get(indexSelectat);
+
+        int valoareVeche;
+        try {
+            String[] parti = textSelectat.trim().split(" ");
+            valoareVeche = Integer.parseInt(parti[1]);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Nu am putut citi valoarea curentă a notei.");
+            return;
+        }
+
+        JTextField campValoareNoua = new JTextField();
+        JTextField campMotiv = new JTextField();
+
+        Object[] formular = {
+                "Valoare veche: " + valoareVeche,
+                "Valoare nouă (1-10):", campValoareNoua,
+                "Motiv:", campMotiv
+        };
+
+        int optiune = JOptionPane.showConfirmDialog(this, formular, "Cerere modificare notă", JOptionPane.OK_CANCEL_OPTION);
+
+        if (optiune != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        int valoareNoua;
+        try {
+            valoareNoua = Integer.parseInt(campValoareNoua.getText().trim());
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Valoare invalidă! Introdu un număr.");
+            return;
+        }
+
+        if (valoareNoua < 1 || valoareNoua > 10) {
+            JOptionPane.showMessageDialog(this, "Nota trebuie să fie între 1 și 10.");
+            return;
+        }
+
+        String motiv = campMotiv.getText().trim();
+
+        try {
+            creazaCerereModificare(idNota, idProfesorCurent, valoareVeche, valoareNoua, motiv);
+            JOptionPane.showMessageDialog(this, "Cererea de modificare a fost trimisă spre aprobare.");
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Eroare la trimiterea cererii: " + ex.getMessage());
+        }
+    }
+    public void creazaCerereModificare(int idNota, int idProfesor, int valoareVeche, int valoareNoua, String motiv) throws SQLException {
+        String sql = "INSERT INTO cereri_modificare_note (id_nota, id_profesor, valoare_veche, valoare_noua, motiv, status, tip_cerere) VALUES (?, ?, ?, ?, ?, 'IN_ASTEPTARE', 'MODIFICARE')";
+        try (Connection conn = JDBC.conecteaza();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, idNota);
+            stmt.setInt(2, idProfesor);
+            stmt.setInt(3, valoareVeche);
+            stmt.setInt(4, valoareNoua);
+            stmt.setString(5, motiv);
+            stmt.executeUpdate();
+        }
+    }
+    private void deschideDialogCereStergere() {
+        int indexSelectat = listaNoteVizuale.getSelectedIndex();
+        if (indexSelectat == -1 || indexSelectat >= idNoteRanduri.size()) {
+            JOptionPane.showMessageDialog(this, "Selectează mai întâi o notă din listă.");
+            return;
+        }
+
+        int idNota = idNoteRanduri.get(indexSelectat);
+        String textSelectat = modelListaNote.get(indexSelectat);
+
+        int valoareVeche;
+        try {
+            String[] parti = textSelectat.trim().split(" ");
+            valoareVeche = Integer.parseInt(parti[1]);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Nu am putut citi valoarea curentă a notei.");
+            return;
+        }
+
+        JTextField campMotiv = new JTextField();
+        Object[] formular = {
+                "Sigur vrei să ceri ștergerea notei: " + valoareVeche + "?",
+                "Motiv:", campMotiv
+        };
+
+        int optiune = JOptionPane.showConfirmDialog(this, formular, "Cerere ștergere notă", JOptionPane.OK_CANCEL_OPTION);
+
+        if (optiune != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        String motiv = campMotiv.getText().trim();
+
+        try {
+            creazaCerereStergere(idNota, idProfesorCurent, valoareVeche, motiv);
+            JOptionPane.showMessageDialog(this, "Cererea de ștergere a fost trimisă spre aprobare.");
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Eroare la trimiterea cererii: " + ex.getMessage());
+        }
+    }
+
+    public void creazaCerereStergere(int idNota, int idProfesor, int valoareVeche, String motiv) throws SQLException {
+        String sql = "INSERT INTO cereri_modificare_note (id_nota, id_profesor, valoare_veche, valoare_noua, motiv, status, tip_cerere) " +
+                "VALUES (?, ?, ?, NULL, ?, 'IN_ASTEPTARE', 'STERGERE')";
+        try (Connection conn = JDBC.conecteaza();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, idNota);
+            stmt.setInt(2, idProfesor);
+            stmt.setInt(3, valoareVeche);
+            stmt.setString(4, motiv);
+            stmt.executeUpdate();
         }
     }
 }

@@ -51,7 +51,6 @@ public class ElevFrame extends JFrame {
     public void initComponente() {
         JPanel panelPrincipal = new JPanel(new BorderLayout());
 
-        // ---------- ANTET COMUN ----------
         JPanel panelHeader = new JPanel();
         panelHeader.setLayout(new BoxLayout(panelHeader, BoxLayout.Y_AXIS));
         panelHeader.setBorder(new EmptyBorder(15, 20, 10, 20));
@@ -70,7 +69,7 @@ public class ElevFrame extends JFrame {
 
         panelPrincipal.add(panelHeader, BorderLayout.NORTH);
 
-        // ---------- JTABBEDPANE (Meniul cu Tab-uri) ----------
+
         JTabbedPane tabbedPane = new JTabbedPane();
         tabbedPane.setFont(new Font("Arial", Font.BOLD, 12));
 
@@ -82,7 +81,6 @@ public class ElevFrame extends JFrame {
         this.add(panelPrincipal);
     }
 
-    // ---------- TAB 1: PANEL CARDURI CU NOTE REALE (FĂRĂ MEDII) ----------
     private JPanel creeazaPanelCarduri() {
         JPanel panelCarduri = new JPanel(new BorderLayout());
 
@@ -148,7 +146,6 @@ public class ElevFrame extends JFrame {
         return card;
     }
 
-    // ---------- TAB 2: PANEL ISTORIC SEMESTRE + EXPORT ----------
     private JPanel creeazaPanelIstoricTabel() {
         JPanel panelIstoric = new JPanel(new BorderLayout());
 
@@ -165,7 +162,7 @@ public class ElevFrame extends JFrame {
 
         panelIstoric.add(randFiltru, BorderLayout.NORTH);
 
-        // Tabelă
+
         String[] coloane = {"Materie", "Note Semestrul I", "Medie S1", "Note Semestrul II", "Medie S2"};
         modelTabel = new DefaultTableModel(coloane, 0) {
             @Override
@@ -186,7 +183,7 @@ public class ElevFrame extends JFrame {
         scrollTabel.setBorder(new EmptyBorder(10, 20, 10, 20));
         panelIstoric.add(scrollTabel, BorderLayout.CENTER);
 
-        // Footer Export
+
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 10));
         btnExport = new JButton("Exporta PDF");
         btnExport.setFont(new Font("Arial", Font.BOLD, 12));
@@ -198,7 +195,6 @@ public class ElevFrame extends JFrame {
         panelSud.add(footer);
         panelIstoric.add(panelSud, BorderLayout.SOUTH);
 
-        // Listenere
         comboAnScolar.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -218,7 +214,6 @@ public class ElevFrame extends JFrame {
         return panelIstoric;
     }
 
-    // ---------- LOGICĂ DATE ȘI EXPORT ----------
     private void incarcaSituatieScolara() {
         if (modelTabel == null || comboAnScolar == null) return;
         modelTabel.setRowCount(0);

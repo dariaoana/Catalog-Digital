@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.example.JDBC;
-
+import org.example.functii.NotificareModificare;
 public class AdminFrame extends JFrame {
 
     private JTable tabelUtilizatori;
@@ -33,7 +33,10 @@ public class AdminFrame extends JFrame {
     private JButton btnAdauga;
     private JButton btnModifica;
     private JButton btnSterge;
-    private JButton btnImportExcel;
+    private JButton btnCereriModificare;
+
+    // ID-ul contului de admin curent logat, folosit pentru a preveni auto-ștergerea
+    private int idUtilizatorCurent = -1;
 
     public AdminFrame() {
         setTitle("Catalog Digital - Administrare Conturi");
@@ -43,15 +46,24 @@ public class AdminFrame extends JFrame {
 
         initComponente();
         incarcaUtilizatori();
+        actualizeazaBadgeCereri(); // NOU
+    }
+
+    // Constructor nou, opțional: dacă vrei să pasezi ID-ul adminului logat din LoginFrame,
+    // ca să poți bloca auto-ștergerea. Dacă nu îl folosești, idUtilizatorCurent rămâne -1
+    // și protecția e pur și simplu ignorată.
+    public AdminFrame(int idUtilizatorCurent) {
+        this();
+        this.idUtilizatorCurent = idUtilizatorCurent;
     }
 
     private void initComponente() {
-        // Folosim un BoxLayout pe axa Y pentru tot ecranul
+
         JPanel panelPrincipal = new JPanel();
         panelPrincipal.setLayout(new BoxLayout(panelPrincipal, BoxLayout.Y_AXIS));
         panelPrincipal.setBorder(new EmptyBorder(15, 20, 15, 20));
 
-        // ================= PANOU SUS: FILTRE =================
+
         JPanel panelFiltre = new JPanel();
         panelFiltre.setLayout(new BoxLayout(panelFiltre, BoxLayout.X_AXIS));
         panelFiltre.setBorder(new TitledBorder("Filtre și Căutare"));
@@ -69,7 +81,7 @@ public class AdminFrame extends JFrame {
         panelPrincipal.add(panelFiltre);
         panelPrincipal.add(Box.createVerticalStrut(10));
 
-        // ================= PANOU CENTRU: TABEL =================
+
         String[] coloane = {"ID Utilizator", "Username", "Parolă", "Rol"};
         model = new DefaultTableModel(coloane, 0) {
             @Override
@@ -89,7 +101,7 @@ public class AdminFrame extends JFrame {
         panelPrincipal.add(scrollPane);
         panelPrincipal.add(Box.createVerticalStrut(10));
 
-        // ================= PANOU JOS: ACȚIUNI (CRUD) =================
+
         JPanel panelActiuni = new JPanel();
         panelActiuni.setLayout(new BoxLayout(panelActiuni, BoxLayout.X_AXIS));
         panelActiuni.setBorder(new TitledBorder("Administrare"));
@@ -97,7 +109,7 @@ public class AdminFrame extends JFrame {
         btnAdauga = new JButton("Adaugă Cont");
         btnModifica = new JButton("Modifică Cont");
         btnSterge = new JButton("Șterge Cont");
-        btnImportExcel = new JButton("Importă din Excel");
+
 
         panelActiuni.add(Box.createHorizontalGlue());
         panelActiuni.add(btnAdauga);
@@ -106,6 +118,9 @@ public class AdminFrame extends JFrame {
         panelActiuni.add(Box.createHorizontalStrut(15));
         panelActiuni.add(btnSterge);
         panelActiuni.add(Box.createHorizontalStrut(15));
+        panelActiuni.add(Box.createHorizontalStrut(15));
+        btnCereriModificare = new JButton("Cereri Modificare Note (0)");
+        panelActiuni.add(btnCereriModificare);
 
         panelPrincipal.add(panelActiuni);
         add(panelPrincipal);
@@ -123,87 +138,9 @@ public class AdminFrame extends JFrame {
         btnAdauga.addActionListener(e -> deschideDialogAdauga());
         btnModifica.addActionListener(e -> deschideDialogModifica());
         btnSterge.addActionListener(e -> stergeUtilizatorSelectat());
+        btnCereriModificare.addActionListener(e -> deschideCereriModificare());
     }
 
-
-    private void importaUtilizatoriDinExcel(File fisier) {
-        int inserati = 0;
-        int esuati = 0;
-        StringBuilder erori = new StringBuilder();
-
-        try (FileInputStream fis = new FileInputStream(fisier);
-             Workbook workbook = new XSSFWorkbook(fis)) {
-
-            Sheet sheet = workbook.getSheetAt(0);
-
-            String sql = "insert into utilizator (nume_utilizator, parola_utilizator, rol) values (?, ?, ?)";
-
-            try (Connection conn = JDBC.conecteaza();
-                 PreparedStatement ps = conn.prepareStatement(sql)) {
-
-                int primulRand = 0;
-
-                Row randTest = sheet.getRow(0);
-                if (randTest != null) {
-                    Cell celulaTest = randTest.getCell(0);
-                    if (celulaTest != null && celulaTest.getCellType() == CellType.STRING) {
-                        String valoare = celulaTest.getStringCellValue().toLowerCase().trim();
-                        if (valoare.equals("nume_utilizator") || valoare.equals("username")) {
-                            primulRand = 1;
-                        }
-                    }
-                }
-
-                for (int i = primulRand; i <= sheet.getLastRowNum(); i++) {
-                    Row row = sheet.getRow(i);
-                    if (row == null) continue;
-
-                    String numeUtilizator = citesteCelulaText(row, 0);
-                    String parola = citesteCelulaText(row, 1);
-                    String rol = citesteCelulaText(row, 2);
-
-                    if (numeUtilizator == null || numeUtilizator.trim().isEmpty()) {
-                        continue;
-                    }
-
-                    if (parola == null || rol == null) {
-                        esuati++;
-                        erori.append("Rând ").append(i + 1).append(": date incomplete\n");
-                        continue;
-                    }
-
-                    try {
-                        ps.setString(1, numeUtilizator.trim());
-                        ps.setString(2, parola.trim());
-                        ps.setString(3, rol.trim().toLowerCase());
-                        ps.executeUpdate();
-                        inserati++;
-                    } catch (SQLException ex) {
-                        esuati++;
-                        erori.append("Rând ").append(i + 1).append(": ").append(ex.getMessage()).append("\n");
-                    }
-                }
-            }
-
-        } catch (IOException ex) {
-            JOptionPane.showMessageDialog(this, "Eroare la citirea fișierului: " + ex.getMessage());
-            return;
-        } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(this, "Eroare la conectarea bazei de date: " + ex.getMessage());
-            return;
-        }
-
-        String mesaj = "Import finalizat.\n" +
-                "Utilizatori adăugați: " + inserati + "\n" +
-                "Rânduri eșuate: " + esuati;
-
-        if (erori.length() > 0) {
-            mesaj += "\n\nDetalii:\n" + erori.toString();
-        }
-
-        JOptionPane.showMessageDialog(this, mesaj);
-        incarcaUtilizatori();
-    }
 
     private String citesteCelulaText(Row row, int index) {
         Cell celula = row.getCell(index);
@@ -236,7 +173,25 @@ public class AdminFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "Eroare: " + e.getMessage());
         }
     }
+    private void actualizeazaBadgeCereri() {
+        String sql = "SELECT COUNT(*) FROM cereri_modificare_note WHERE status = 'IN_ASTEPTARE'";
+        try (Connection conn = JDBC.conecteaza();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            int numar = 0;
+            if (rs.next()) {
+                numar = rs.getInt(1);
+            }
+            btnCereriModificare.setText("Cereri Modificare Note (" + numar + ")");
+        } catch (SQLException e) {
+            System.err.println("Eroare la numărarea cererilor: " + e.getMessage());
+        }
+    }
 
+    private void deschideCereriModificare() {
+        NotificareModificare fereastra = new NotificareModificare(this);
+        fereastra.setVisible(true);
+    }
     private void aplicaFiltre() {
         String text = campCautare.getText().trim();
         String rolSelectat = (String) comboFiltruRol.getSelectedItem();
@@ -371,6 +326,13 @@ public class AdminFrame extends JFrame {
         String username = (String) model.getValueAt(randModel, 1);
         String rol = (String) model.getValueAt(randModel, 3);
 
+        // Protecție: nu permitem ștergerea contului cu care ești logat curent
+        if (idUtilizatorCurent != -1 && idUtilizator == idUtilizatorCurent) {
+            JOptionPane.showMessageDialog(this, "Nu poți șterge contul cu care ești logat curent!",
+                    "Acțiune blocată", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         int confirmare = JOptionPane.showConfirmDialog(
                 this,
                 "Ești sigur că vrei să ștergi contul '" + username + "'? Toate datele asociate (note, mesaje, asocieri) vor fi șterse definitiv!",
@@ -388,84 +350,117 @@ public class AdminFrame extends JFrame {
             conn.setAutoCommit(false); // Dezactivăm autocommit ca să putem da rollback în caz de eroare
 
             try {
-             if (rol.equalsIgnoreCase("elev")) {
-                // 1. Identificăm ID-ul elevului
-                int idElev = -1;
-                String sqlGetIdElev = "SELECT id_elev FROM elev WHERE id_utilizator_e = ?";
-                try (PreparedStatement ps = conn.prepareStatement(sqlGetIdElev)) {
-                    ps.setInt(1, idUtilizator);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) {
-                            idElev = rs.getInt("id_elev");
+                if (rol.equalsIgnoreCase("elev")) {
+                    // 1. Identificăm ID-ul elevului
+                    int idElev = -1;
+                    String sqlGetIdElev = "SELECT id_elev FROM elev WHERE id_utilizator_e = ?";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlGetIdElev)) {
+                        ps.setInt(1, idUtilizator);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                idElev = rs.getInt("id_elev");
+                            }
                         }
                     }
-                }
 
-                if (idElev != -1) {
-                    // 2. Ștergem notele elevului
-                    String sqlDeleteNote = "DELETE FROM nota WHERE elev = ?";
-                    try (PreparedStatement ps = conn.prepareStatement(sqlDeleteNote)) {
-                        ps.setInt(1, idElev);
+                    if (idElev != -1) {
+                        // 2. Ștergem cererile de modificare/ștergere legate de notele acestui elev
+                        //    (altfel FK-ul din cereri_modificare_note blochează ștergerea notelor)
+                        String sqlDeleteCereri = "DELETE FROM cereri_modificare_note WHERE id_nota IN (SELECT id_nota FROM nota WHERE elev = ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(sqlDeleteCereri)) {
+                            ps.setInt(1, idElev);
+                            ps.executeUpdate();
+                        }
+
+                        // 3. Ștergem notele elevului
+                        String sqlDeleteNote = "DELETE FROM nota WHERE elev = ?";
+                        try (PreparedStatement ps = conn.prepareStatement(sqlDeleteNote)) {
+                            ps.setInt(1, idElev);
+                            ps.executeUpdate();
+                        }
+
+                        // 4. Ștergem mesajele părintelui acestui elev (pentru a evita eroarea de Foreign Key din tabelul 'mesaj')
+                        String sqlDeleteMesajeParinte = "DELETE FROM mesaj WHERE id_parinte = (SELECT id_parinte FROM parinte WHERE parinte_pentru = ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(sqlDeleteMesajeParinte)) {
+                            ps.setInt(1, idElev);
+                            ps.executeUpdate();
+                        }
+
+                        // 5. Ștergem contul de utilizator al părintelui asociat (dacă există), înainte de a șterge părintele
+                        String sqlDeleteUtilizatorParinte = "DELETE FROM utilizator WHERE id_utilizator = (SELECT id_utilizator_p FROM parinte WHERE parinte_pentru = ?)";
+                        try (PreparedStatement ps = conn.prepareStatement(sqlDeleteUtilizatorParinte)) {
+                            ps.setInt(1, idElev);
+                            ps.executeUpdate();
+                        }
+
+                        // 6. Ștergem părintele asociat
+                        String sqlDeleteParinte = "DELETE FROM parinte WHERE parinte_pentru = ?";
+                        try (PreparedStatement ps = conn.prepareStatement(sqlDeleteParinte)) {
+                            ps.setInt(1, idElev);
+                            ps.executeUpdate();
+                        }}
+                    // 7. Ștergem elevul
+                    String sqlDeleteElev = "DELETE FROM elev WHERE id_utilizator_e = ?";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlDeleteElev)) {
+                        ps.setInt(1, idUtilizator);
+                        ps.executeUpdate();
+                    }
+                } else if (rol.equalsIgnoreCase("profesor")) {
+
+                    // Pasul 1: Eliberăm materiile (le punem pe NULL ca să nu mai depindă de acest profesor)
+                    String sqlUpdateMaterii = "UPDATE materie SET profesor_materie = NULL WHERE profesor_materie = (SELECT id_profesor FROM profesor WHERE id_utilizator_prof = ?)";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlUpdateMaterii)) {
+                        ps.setInt(1, idUtilizator);
                         ps.executeUpdate();
                     }
 
-                    // 3. Ștergem mesajele părintelui acestui elev (pentru a evita eroarea de Foreign Key din tabelul 'mesaj')
-                    String sqlDeleteMesajeParinte = "DELETE FROM mesaj WHERE id_parinte = (SELECT id_parinte FROM parinte WHERE parinte_pentru = ?)";
-                    try (PreparedStatement ps = conn.prepareStatement(sqlDeleteMesajeParinte)) {
-                        ps.setInt(1, idElev);
+                    // Pasul 2: Ștergem cererile de modificare/ștergere trimise de acest profesor
+                    String sqlDeleteCereriProf = "DELETE FROM cereri_modificare_note WHERE id_profesor = (SELECT id_profesor FROM profesor WHERE id_utilizator_prof = ?)";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlDeleteCereriProf)) {
+                        ps.setInt(1, idUtilizator);
                         ps.executeUpdate();
                     }
 
-                    // 4. Ștergem părintele asociat
-                    String sqlDeleteParinte = "DELETE FROM parinte WHERE parinte_pentru = ?";
-                    try (PreparedStatement ps = conn.prepareStatement(sqlDeleteParinte)) {
-                        ps.setInt(1, idElev);
+                    // Pasul 3: Ștergem asocierile cu clasele
+                    String sqlClase = "DELETE FROM profesor_clasa WHERE id_profesor = (SELECT id_profesor FROM profesor WHERE id_utilizator_prof = ?)";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlClase)) {
+                        ps.setInt(1, idUtilizator);
                         ps.executeUpdate();
-                    }}
-                // 5. Ștergem elevul
-                String sqlDeleteElev = "DELETE FROM elev WHERE id_utilizator_e = ?";
-                try (PreparedStatement ps = conn.prepareStatement(sqlDeleteElev)) {
+                    }
+
+                    // Pasul 4: ȘTERGEM PROFESORUL PROPRIU-ZIS
+                    String sqlProfesor = "DELETE FROM profesor WHERE id_utilizator_prof = ?";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlProfesor)) {
+                        ps.setInt(1, idUtilizator);
+                        ps.executeUpdate();
+                    }
+                }
+                else if (rol.equalsIgnoreCase("parinte")) {
+                    // 1. Ștergem mesajele asociate acestui părinte
+                    String sqlDeleteMesaje = "DELETE FROM mesaj WHERE id_parinte = (SELECT id_parinte FROM parinte WHERE id_utilizator_p = ?)";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlDeleteMesaje)) {
+                        ps.setInt(1, idUtilizator);
+                        ps.executeUpdate();
+                    }
+
+                    // 2. Ștergem părintele
+                    String sqlParinte = "DELETE FROM parinte WHERE id_utilizator_p = ?";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlParinte)) {
+                        ps.setInt(1, idUtilizator);
+                        ps.executeUpdate();
+                    }
+                }
+                // Pentru rolul "admin" nu există date suplimentare asociate în alte tabele,
+                // deci se sare direct la ștergerea din tabela utilizator, mai jos.
+
+                // Pas final, comun tuturor rolurilor: ștergem rândul din tabela utilizator
+                // (înainte, acest pas lipsea complet, motiv pentru care userul rămânea
+                // vizibil în listă, deși datele lui asociate fuseseră deja șterse)
+                String sqlDeleteUtilizator = "DELETE FROM utilizator WHERE id_utilizator = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sqlDeleteUtilizator)) {
                     ps.setInt(1, idUtilizator);
                     ps.executeUpdate();
                 }
-             } else if (rol.equalsIgnoreCase("profesor")) {
-
-                 // Pasul 1: Eliberăm materiile (le punem pe NULL ca să nu mai depindă de acest profesor)
-                 String sqlUpdateMaterii = "UPDATE materie SET profesor_materie = NULL WHERE profesor_materie = (SELECT id_profesor FROM profesor WHERE id_utilizator_prof = ?)";
-                 try (PreparedStatement ps = conn.prepareStatement(sqlUpdateMaterii)) {
-                     ps.setInt(1, idUtilizator);
-                     ps.executeUpdate();
-                 }
-
-                 // Pasul 2: Ștergem asocierile cu clasele
-                 String sqlClase = "DELETE FROM profesor_clasa WHERE id_profesor = (SELECT id_profesor FROM profesor WHERE id_utilizator_prof = ?)";
-                 try (PreparedStatement ps = conn.prepareStatement(sqlClase)) {
-                     ps.setInt(1, idUtilizator);
-                     ps.executeUpdate();
-                 }
-
-                 // Pasul 3: ȘTERGEM PROFESORUL PROPRIU-ZIS (Aceasta este linia care probabil a lipsit sau a dat skip)
-                 String sqlProfesor = "DELETE FROM profesor WHERE id_utilizator_prof = ?";
-                 try (PreparedStatement ps = conn.prepareStatement(sqlProfesor)) {
-                     ps.setInt(1, idUtilizator);
-                     ps.executeUpdate();
-                 }
-             }
-             else if (rol.equalsIgnoreCase("parinte")) {
-                // 1. Ștergem mesajele asociate acestui părinte
-                String sqlDeleteMesaje = "DELETE FROM mesaj WHERE id_parinte = (SELECT id_parinte FROM parinte WHERE id_utilizator_p = ?)";
-                try (PreparedStatement ps = conn.prepareStatement(sqlDeleteMesaje)) {
-                    ps.setInt(1, idUtilizator);
-                    ps.executeUpdate();
-                }
-
-                // 2. Ștergem părintele
-                String sqlParinte = "DELETE FROM parinte WHERE id_utilizator_p = ?";
-                try (PreparedStatement ps = conn.prepareStatement(sqlParinte)) {
-                    ps.setInt(1, idUtilizator);
-                    ps.executeUpdate();
-                }
-            }
 
                 conn.commit(); // Salvăm modificările în DB doar dacă toate query-urile de mai sus au reușit
                 JOptionPane.showMessageDialog(this, "Utilizatorul și toate datele sale asociate au fost șterse cu succes!");
@@ -479,5 +474,8 @@ public class AdminFrame extends JFrame {
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(this, "Eroare la conectarea la baza de date: " + ex.getMessage());
         }
+    }
+    public void actualizeazaBadgeCereriPublic() {
+        actualizeazaBadgeCereri();
     }
 }
